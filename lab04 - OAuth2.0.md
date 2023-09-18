@@ -73,7 +73,141 @@ auth: {
 
 
 ## Exercise 3 - Examine the Token from Azure AD
+- Start SPA application, and use the browser navigate to `http://localhost:3000`
+- Click `Login with Azure AD`
+- The login form will popup, then enter your credential to authenticate with Azure AD
+- When successfully login with Azure AD, on the menu of SPA application click `Token Inspector`
+- Analys the token returned from Azure AD, it will have various claims, we will go through some of the claims that we will used
+
 
 ## Exercise 4 - Implement APIM Policy to Validate JWT Token
+After our frontend SPA application is able to authenticate with `Azure AD` and able to retrive the token. To make the authorization process work, generally the frontend SPA application needs to send the token in the HTTP Header `Authorization: Bearer <token>` to every API requests, and the token will be picked up by `Azure APIM` which will examine and validate the token which we will implement that logic in this exercise
 
-## Exercise 5 - Testing 
+
+### Register APIM as one of the Application via Azure AD
+In order to govern our API more efficiently, it's recommended to register the APIM as one of the Application in Azure AD, so that we can treat it like a protected resource, which we can grant the scope to each clients.
+
+- Open Azure Portal and navigate to `Azure Active Directory`, then click `App Registration` without `Redirect URL (optional)`
+![Register APIM](./assets/lab04-register-apim01.png)
+
+- After successfully register APIM as an application in AD, Click `Expose API` menu, and click Add `Application ID URI`, then click `Save`
+
+![Register APIM](./assets/lab04-expose-api.png)
+
+
+- Then Add scope name `Products`
+
+![Add Scope](./assets/lab04-add-scope.png), and enter the Admin consent display name and description, then click `Save`
+
+- Then `Add a client application`, Then copy the `Application (Client) ID` of the SPA that we register earlier, then check the `Authorized scopes`
+
+- Copy the scope name, which will be used to update the SPA source code
+
+![Add client](./assets/lab04-add-client.png)
+
+
+### Update scopes to SPA source code
+In the `loginRequest` of the SPA, we need to specify the scopes that we want to use, in this case the scope is what we've just created in AD `api://<id>/products`
+
+- Use text editor, open the source code of SPA `./src/authConfig.js`
+
+```js
+/**
+ * Scopes you add here will be prompted for user consent during sign-in.
+ * By default, MSAL.js will add OIDC scopes (openid, profile, email) to any login request.
+ * For more information about OIDC scopes, visit: 
+ * https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-permissions-and-consent#openid-connect-scopes
+ */
+export const loginRequest = {
+    scopes: ["api://a49c40ab-9685-475e-8550-8945a36a05fe/products"],
+};
+```
+
+- Then save the file, it should be automatically restart the SPA application
+
+---
+At this point, we should be ready to authenticate with Azure AD for the SPA
+
+- Click `Login with Azure AD` button, it should popup the authentication windows
+![Login with AD](./assets/lab04-login-with-ad.png)
+
+- Login
+- Examine the token return from Azure AD, Compare with the Exercise 3
+
+
+### Configure Azure APIM
+- Open Azure Portal and navigate to Azure API Management
+- Create API name `Product API` (using HTTP)
+![Create API](./assets/lab04-create-product-api.png)
+
+- Add Operation `List Products`
+  + Display Name: `List Products`
+  + Name: `list-products`
+  + URL (Method): `GET`
+  + URL: `/v1/products`
+
+![Add Operation](./assets/lab04-add-api-operation-list-product.png)
+
+- In `Settings` menu, Disable `Subscription required`
+![Disable Subscription](./assets/lab04-disable-subscription.png)
+
+- Click `All Operations`, click add `Policy`, select `cors`
+![Cors](./assets/lab04-set-cors.png)
+  + Allowed Origins: `http://localhost:3000`
+  + Allowed methods: `GET, POST, OPTIONS, HEAD`
+  + Allowed headers: `*`
+
+
+- Click `All Operations`, click add `Policy`, select `Validate JWT`
+![JWT Validation](./assets/lab04-validate-jwt.png)
+
+- Configure JWT validation
+![JWT Validation Check](./assets/lab04-validate-jwt-policy.png)
+![JWT Validation Policy](./assets/lab04-jwt-validator-check.png)
+  + Validate by: `Header`
+  + Header name: `Authorization`
+  + Required expiration time: `Yes`
+  + Required signed tokens: `Yes`
+  + Required scheme: `Bearer`
+  + Click skew (in seconds): `10` (or any number)
+  + Audiences: value in claim name `aud`
+  + Issuers: value in claim name `iss`
+  + Required claim (name): `scp`
+  + Required claim (Match): `All claims`
+  + Required claim (Separator): ` ` (space)
+  + Required claim (Values): `products`
+  + Open ID URLs: Get this url from Azure AD overview page, menu `Endpoints`
+
+- Then click `Save`
+
+
+### Configure API endpoint in SPA sourcecode
+At this point the APIM is ready for serve the API to SPA, however, it's required to be configured to connect to the API end point
+
+- Use text editor open file `.env`
+- Update `REACT_APP_PRODUCT_API_ENDPOINT` value to your Product API endpoint
+
+Example: 
+```
+REACT_APP_PRODUCT_API_ENDPOINT=https://apim-workshop.azure-api.net/product-service
+```
+
+- Save and restart the SPA
+
+
+
+## Exercise 5 - Testing
+
+- Login SPA with Azure AD
+- On the menu, navigate to `Products` 
+- SPA should be able to retrive all product items from the API
+![SPA List products](./assets/lab04-spa-list-products.png)
+
+- Use `curl` command to request for the list of products API, without token, and see the result
+  ```
+  $ curl https://<apim-url>/profile-service/v1/profiles
+  ```
+- Use `curl` command to request for the list of products API, with invalid token, and see the result
+```
+$ curl https://<apim-url>/profile-service/v1/profiles -H 'Authorization: Bearer invalidtoken'
+```
