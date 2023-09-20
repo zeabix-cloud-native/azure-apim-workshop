@@ -1,4 +1,4 @@
-# Lab-08 Response filtering
+# Lab-10 Response filtering
 
 When we create reusable API (as a platform), the common problem that we found is that
 each client use the data in the different way which depends on the business use-case.
