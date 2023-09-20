@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: API Workshop Sample API
+  version: 1.0.0
+
+servers:
+  - url: https://workshop-api.z-unified.com/profile-service
+
+paths:
+  /v1/profiles:
+    post:
+      tags:
+        - profile 
+      summary: API for create profile
+      operationId: createProfile 
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: '#/components/schemas/CreateProfileV1Request'
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateProfileV1Response'
+        "500":
+          description: Internal Server Error
+
+  /v1/profiles/{id}:
+    get:
+      tags:
+        - profile 
+      summary: Get Profile by id
+      operationId: getProfile
+      parameters:
+        - name: id 
+          in: path
+          description: User id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200": 
+          description: Success
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/CreateProfileV1Response'
+        "404": 
+          description: Not found
+        "500": 
+          description: Internal Server Error
+      
+components:
+  schemas:
+    CreateProfileV1Request:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username 
+        firstname:
+          type: string
+          description: firstname
+        lastname: 
+          type: string
+          description: Lastname 
+        avatar:
+          type: string
+          description: URL to avatar image
+    CreateProfileV1Response:
+      type: object
+      properties:
+        id: 
+          type: string
+          description: System generated ID
+        username:
+          type: string
+          description: Username 
+        firstname:
+          type: string
+          description: firstname
+        lastname: 
+          type: string
+          description: Lastname 
+        avatar:
+          type: string
+          description: URL to avatar image
